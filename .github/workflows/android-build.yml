@@ -18,18 +18,25 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: ''
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Accept Android SDK licenses and install SDK
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0"
       - name: Assemble debug APK
-        run: gradle assembleDebug
+        run: gradle --no-daemon assembleDebug
+      - name: Verify APK
+        run: test -s app/build/outputs/apk/debug/app-debug.apk
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: 768-glass-tv-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
