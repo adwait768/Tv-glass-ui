@@ -1,6 +1,12 @@
 package com.seveneightsix.glassos
 
 import android.content.Intent
+import android.content.ComponentName
+import android.graphics.drawable.Drawable
+import android.widget.ImageView
+import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.os.Bundle
 import android.os.Environment
 import android.os.StatFs
@@ -32,10 +38,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private data class AppEntry(val packageName:String, val label:String, val icon:Drawable, val launchActivity:String = "")
+
 // 768 Glass OS — ruby-glass luxury interface.
 private val Void = Color(0xFF090607)
 private val Panel = Color(0xFF1B1013)
 private val Glass = Color(0xFF251317)
+private val GlassEdge = Color(0xFFFFC3D0)
+private val GlassGlow = Color(0xFFB83B5A)
 private val White = Color(0xFFFFF4F3)
 private val Silver = Color(0xFFE0BFC2)
 private val Dim = Color(0xFF9A7B80)
@@ -56,11 +66,26 @@ class MainActivity : ComponentActivity() {
 fun GlassOS() {
  var page by remember { mutableStateOf("Home") }
  val ctx = androidx.compose.ui.platform.LocalContext.current
- val apps = remember {
-  val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-  @Suppress("DEPRECATION")
-  ctx.packageManager.queryIntentActivities(i, PackageManager.MATCH_ALL)
-   .sortedBy { it.loadLabel(ctx.packageManager).toString().lowercase() }
+ var apps by remember { mutableStateOf<List<AppEntry>>(emptyList()) }
+ LaunchedEffect(Unit) {
+  apps = withContext(Dispatchers.IO) {
+   val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+   @Suppress("DEPRECATION")
+   ctx.packageManager.queryIntentActivities(launcherIntent, PackageManager.MATCH_ALL)
+    .asSequence()
+    .filter { it.activityInfo.packageName != ctx.packageName }
+    .distinctBy { it.activityInfo.packageName }
+    .map { info ->
+     AppEntry(
+      packageName = info.activityInfo.packageName,
+      label = info.loadLabel(ctx.packageManager).toString(),
+      icon = info.loadIcon(ctx.packageManager),
+      launchActivity = info.activityInfo.name
+     )
+    }
+    .sortedBy { it.label.lowercase() }
+    .toList()
+  }
  }
  val time = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()) }
  val date = remember { java.text.SimpleDateFormat("EEE  ·  dd MMM", java.util.Locale.getDefault()).format(java.util.Date()).uppercase() }
@@ -86,14 +111,27 @@ fun GlassOS() {
       Text("${apps.size} INSTALLED", color=Dim, fontSize=9.sp, letterSpacing=1.5.sp)
       Spacer(Modifier.height(18.dp))
       LazyVerticalGrid(columns=GridCells.Adaptive(92.dp), verticalArrangement=Arrangement.spacedBy(10.dp), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-       items(apps) { app ->
-        val label=app.loadLabel(ctx.packageManager).toString()
-        Column(Modifier.background(Brush.verticalGradient(listOf(Color(0xFF48202B), Glass, Color(0xFF170D10))),RoundedCornerShape(18.dp)).border(1.dp,Color(0xFFB85A70).copy(alpha=.24f),RoundedCornerShape(18.dp)).clickable {
-         ctx.packageManager.getLaunchIntentForPackage(app.activityInfo.packageName)?.let { ctx.startActivity(it) }
-        }.padding(vertical=16.dp,horizontal=7.dp), horizontalAlignment=Alignment.CenterHorizontally) {
-         Text(label.take(1).uppercase(),color=RoseGold,fontSize=22.sp,fontWeight=FontWeight.Light)
-         Spacer(Modifier.height(6.dp))
-         Text(label,color=White.copy(alpha=.88f),fontSize=10.sp,maxLines=2)
+       items(apps, key = { it.packageName }) { app ->
+        Column(
+         Modifier.fillMaxWidth()
+          .background(Brush.verticalGradient(listOf(Color(0x66FFFFFF), Color(0x332F101B), Color(0x66200912))), RoundedCornerShape(20.dp))
+          .border(1.dp, Brush.linearGradient(listOf(GlassEdge.copy(alpha=.62f), Color(0x44FFFFFF), GlassGlow.copy(alpha=.35f))), RoundedCornerShape(20.dp))
+          .clickable {
+           val launch = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+            .setComponent(ComponentName(app.packageName, app.launchActivity))
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+           runCatching { ctx.startActivity(launch) }
+          }
+          .padding(vertical=14.dp,horizontal=7.dp),
+         horizontalAlignment=Alignment.CenterHorizontally
+        ) {
+         AndroidView(
+          factory = { ImageView(it).apply { scaleType = ImageView.ScaleType.FIT_CENTER; setPadding(2,2,2,2) } },
+          update = { it.setImageDrawable(app.icon) },
+          modifier = Modifier.size(42.dp)
+         )
+         Spacer(Modifier.height(8.dp))
+         Text(app.label,color=White.copy(alpha=.94f),fontSize=10.sp,maxLines=2)
         }
        }
       }
@@ -104,10 +142,10 @@ fun GlassOS() {
       Spacer(Modifier.height(7.dp))
       Text("Appearance",color=White,fontSize=34.sp,fontWeight=FontWeight.Light)
       Spacer(Modifier.height(20.dp))
-      DetailRow("01","Monochrome","Obsidian · graphite · titanium")
+      DetailRow("01","Ruby glass","Translucent crimson · rose gold · obsidian")
       DetailRow("02","Display safe area","Camera cutout-aware layout")
       DetailRow("03","Motion language","Quiet spring transitions")
-      DetailRow("04","Surface finish","Low-gloss translucent panels")
+      DetailRow("04","Surface finish","Frosted layers · reflective glass edges")
      }
      else -> {
       Text(date,color=Dim,fontSize=9.sp,letterSpacing=2.1.sp)
@@ -128,12 +166,12 @@ fun GlassOS() {
      }
     }
     if(page!="Home") Spacer(Modifier.weight(1f))
-    Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color(0xFF382027),Panel,Color(0xFF160D10))),RoundedCornerShape(26.dp)).border(1.dp,Color(0xFFB85A70).copy(alpha=.25f),RoundedCornerShape(26.dp)).padding(6.dp),horizontalArrangement=Arrangement.SpaceAround) {
+    Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color(0x66FFFFFF),Color(0x552F1820),Color(0x9911080D))),RoundedCornerShape(26.dp)).border(1.dp,Color(0x99FFFFFF),RoundedCornerShape(26.dp)).padding(6.dp),horizontalArrangement=Arrangement.SpaceAround) {
      listOf("Home","Apps","Device","Settings").forEach { item ->
       val selected=page==item
       val scale by animateFloatAsState(if(selected) 1f else .96f,animationSpec=spring(stiffness=500f),label="navScale")
       val icon=when(item){"Home"->Icons.Default.Home;"Apps"->Icons.Default.GridView;"Device"->Icons.Default.Memory;else->Icons.Default.Tune}
-      Column(Modifier.scale(scale).clickable{page=item}.background(if(selected) Color(0xFF5A1829).copy(alpha=.78f) else Color.Transparent,RoundedCornerShape(20.dp)).padding(horizontal=13.dp,vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+      Column(Modifier.scale(scale).clickable{page=item}.background(if(selected) Color(0x667A1B36) else Color.Transparent,RoundedCornerShape(20.dp)).padding(horizontal=13.dp,vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally) {
        Icon(icon,null,tint=if(selected) White else Dim,modifier=Modifier.size(18.dp))
        Text(item,color=if(selected) White else Dim,fontSize=9.sp)
       }
@@ -146,7 +184,7 @@ fun GlassOS() {
 
 @Composable
 private fun QuickRow(title:String,subtitle:String,icon:androidx.compose.ui.graphics.vector.ImageVector,onClick:()->Unit) {
- Row(Modifier.fillMaxWidth().padding(bottom=9.dp).background(Brush.verticalGradient(listOf(Color(0xFF3A1C25),Panel,Color(0xFF170D10))),RoundedCornerShape(17.dp)).border(1.dp,Color(0xFFB85A70).copy(alpha=.22f),RoundedCornerShape(17.dp)).clickable(onClick=onClick).padding(horizontal=15.dp,vertical=15.dp),verticalAlignment=Alignment.CenterVertically) {
+ Row(Modifier.fillMaxWidth().padding(bottom=9.dp).background(Brush.verticalGradient(listOf(Color(0x55FFFFFF),Color(0x443A1A25),Color(0xAA13090E))),RoundedCornerShape(17.dp)).border(1.dp,Color(0x88FFFFFF),RoundedCornerShape(17.dp)).clickable(onClick=onClick).padding(horizontal=15.dp,vertical=15.dp),verticalAlignment=Alignment.CenterVertically) {
   Icon(icon,null,tint=Silver,modifier=Modifier.size(20.dp))
   Spacer(Modifier.width(13.dp))
   Column(Modifier.weight(1f)) {
