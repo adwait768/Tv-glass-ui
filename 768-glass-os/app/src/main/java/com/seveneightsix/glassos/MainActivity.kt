@@ -7,6 +7,9 @@ import android.os.StatFs
 import android.content.pm.PackageManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,19 +23,25 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Night = Color(0xFF07131F)
-private val Aqua = Color(0xFF8BE9F2)
-private val Glass = Color(0x2EFFFFFF)
+// Restrained graphite / silver palette. Accent is deliberately low-saturation.
+private val Black = Color(0xFF08090B)
+private val Graphite = Color(0xFF17191D)
+private val Silver = Color(0xFFD8DCE1)
+private val Muted = Color(0xFF9299A3)
+private val Glass = Color(0x16FFFFFF)
+private val Edge = Color(0x24FFFFFF)
 
 class MainActivity : ComponentActivity() {
  override fun onCreate(savedInstanceState: Bundle?) {
   super.onCreate(savedInstanceState)
+  enableEdgeToEdge()
   setContent { GlassOS() }
  }
 }
@@ -44,56 +53,69 @@ fun GlassOS() {
  val apps = remember {
   val i = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
   @Suppress("DEPRECATION")
-  ctx.packageManager.queryIntentActivities(i, PackageManager.MATCH_ALL).sortedBy { it.loadLabel(ctx.packageManager).toString().lowercase() }
+  ctx.packageManager.queryIntentActivities(i, PackageManager.MATCH_ALL)
+   .sortedBy { it.loadLabel(ctx.packageManager).toString().lowercase() }
  }
- MaterialTheme(colorScheme = darkColorScheme(primary=Aqua, background=Night)) {
-  Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF15364C),Night,Color(0xFF202746))))) {
-   Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(20.dp)) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween) {
-     Column { Text("768 GLASS", color=Color.White, fontWeight=FontWeight.Bold, letterSpacing=3.sp); Text("A calmer way to use your phone", color=Aqua, fontSize=11.sp) }
-     Text("GLASS OS", color=Color.White.copy(alpha=.8f), fontSize=12.sp)
+ MaterialTheme(colorScheme = darkColorScheme(primary=Silver, background=Black, surface=Graphite)) {
+  Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF25282D),Black,Color(0xFF111316))))) {
+   // safeDrawingPadding respects status/navigation bars and display cutouts:
+   // centred punch-holes, corner cutouts, and traditional notches.
+   Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal=20.dp, vertical=14.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
+     Column {
+      Text("768", color=Silver, fontSize=13.sp, fontWeight=FontWeight.Bold, letterSpacing=5.sp)
+      Text("GLASS OS", color=Muted, fontSize=9.sp, letterSpacing=3.sp)
+     }
+     Text("DESIGNED TO FEEL LIGHT", color=Muted, fontSize=8.sp, letterSpacing=1.5.sp)
     }
-    Spacer(Modifier.height(28.dp))
+    Spacer(Modifier.height(34.dp))
     when(page) {
      "Apps" -> {
-      Text("Your apps", color=Color.White, fontSize=28.sp, fontWeight=FontWeight.SemiBold)
-      Spacer(Modifier.height(12.dp))
-      LazyVerticalGrid(columns=GridCells.Adaptive(100.dp), verticalArrangement=Arrangement.spacedBy(10.dp), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+      Text("Library", color=Silver, fontSize=30.sp, fontWeight=FontWeight.Light)
+      Text("${apps.size} applications", color=Muted, fontSize=12.sp)
+      Spacer(Modifier.height(18.dp))
+      LazyVerticalGrid(columns=GridCells.Adaptive(92.dp), verticalArrangement=Arrangement.spacedBy(12.dp), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
        items(apps) { app ->
         val label=app.loadLabel(ctx.packageManager).toString()
-        Column(Modifier.background(Glass,RoundedCornerShape(20.dp)).clickable {
+        Column(Modifier.background(Glass,RoundedCornerShape(22.dp)).clickable {
          ctx.packageManager.getLaunchIntentForPackage(app.activityInfo.packageName)?.let { ctx.startActivity(it) }
-        }.padding(14.dp), horizontalAlignment=Alignment.CenterHorizontally) {
-         Text(label.take(1).uppercase(), color=Aqua, fontSize=25.sp, fontWeight=FontWeight.Bold)
-         Text(label, color=Color.White, fontSize=11.sp, maxLines=2)
+        }.padding(vertical=17.dp, horizontal=8.dp), horizontalAlignment=Alignment.CenterHorizontally) {
+         Text(label.take(1).uppercase(), color=Silver, fontSize=23.sp, fontWeight=FontWeight.Light)
+         Spacer(Modifier.height(6.dp))
+         Text(label, color=Silver.copy(alpha=.86f), fontSize=10.sp, maxLines=2)
         }
        }
       }
      }
      "Device" -> DevicePanel()
      "Settings" -> {
-      Text("Glass settings", color=Color.White, fontSize=28.sp)
-      Text("Next: wallpapers, icon scale, glass strength and animation controls.", color=Color.White.copy(alpha=.75f), modifier=Modifier.padding(top=12.dp))
+      Text("Appearance", color=Silver, fontSize=30.sp, fontWeight=FontWeight.Light)
+      Spacer(Modifier.height(12.dp))
+      GlassTile("Monochrome finish","Graphite · silver · soft translucency",Icons.Default.Contrast)
+      GlassTile("Display adaptation","Uses Android safe insets for your camera cutout",Icons.Default.Smartphone)
+      GlassTile("Motion","Subtle spring transitions",Icons.Default.Animation)
      }
      else -> {
-      Text("Good morning.", color=Color.White.copy(alpha=.8f), fontSize=16.sp)
-      Text("Make space for what matters.", color=Color.White, fontSize=31.sp, fontWeight=FontWeight.SemiBold, lineHeight=37.sp)
-      Spacer(Modifier.height(24.dp))
-      Row(horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-       Tile("Apps","Launch your apps",Icons.Default.Apps,Modifier.weight(1f)){page="Apps"}
-       Tile("Device","Storage overview",Icons.Default.Storage,Modifier.weight(1f)){page="Device"}
-      }
+      Text("THURSDAY  /  19 NOV", color=Muted, fontSize=10.sp, letterSpacing=2.sp)
       Spacer(Modifier.height(12.dp))
-      Tile("Personalize","Wallpaper and appearance",Icons.Default.Palette,Modifier.fillMaxWidth()){page="Settings"}
+      Text("Less noise.\nMore focus.", color=Silver, fontSize=39.sp, fontWeight=FontWeight.ExtraLight, lineHeight=43.sp)
+      Spacer(Modifier.height(28.dp))
+      GlassTile("Application library","All apps, one quiet space",Icons.Default.GridView) { page="Apps" }
+      GlassTile("Device overview","Storage and device information",Icons.Default.Memory) { page="Device" }
+      GlassTile("Personalize","Finish, layout and motion",Icons.Default.Tune) { page="Settings" }
+      Spacer(Modifier.height(18.dp))
+      Text("768  /  A NEW INTERFACE", color=Muted, fontSize=9.sp, letterSpacing=2.sp)
      }
     }
     Spacer(Modifier.weight(1f))
-    Row(Modifier.fillMaxWidth().background(Color(0x553D6378),RoundedCornerShape(28.dp)).padding(8.dp), horizontalArrangement=Arrangement.SpaceAround) {
+    Row(Modifier.fillMaxWidth().background(Color(0xCC17191D),RoundedCornerShape(30.dp)).padding(7.dp), horizontalArrangement=Arrangement.SpaceAround) {
      listOf("Home","Apps","Device","Settings").forEach { item ->
-      val icon=when(item){"Home"->Icons.Default.Home;"Apps"->Icons.Default.Apps;"Device"->Icons.Default.Memory;else->Icons.Default.Tune}
-      Column(Modifier.clickable{page=item}.padding(horizontal=8.dp,vertical=6.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-       Icon(icon,null,tint=if(page==item) Aqua else Color.White.copy(alpha=.7f))
-       Text(item,color=if(page==item) Aqua else Color.White.copy(alpha=.7f),fontSize=10.sp)
+      val selected = page==item
+      val scale by animateFloatAsState(if(selected) 1f else .94f, animationSpec=spring(), label="navScale")
+      val icon=when(item){"Home"->Icons.Default.Home;"Apps"->Icons.Default.GridView;"Device"->Icons.Default.Memory;else->Icons.Default.Tune}
+      Column(Modifier.scale(scale).clickable{page=item}.background(if(selected) Color(0x22FFFFFF) else Color.Transparent,RoundedCornerShape(22.dp)).padding(horizontal=12.dp,vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+       Icon(icon,null,tint=if(selected) Silver else Muted,modifier=Modifier.size(19.dp))
+       Text(item,color=if(selected) Silver else Muted,fontSize=9.sp)
       }
      }
     }
@@ -103,10 +125,15 @@ fun GlassOS() {
 }
 
 @Composable
-private fun Tile(title:String, subtitle:String, icon:androidx.compose.ui.graphics.vector.ImageVector, modifier:Modifier=Modifier, onClick:()->Unit) {
- Row(modifier.background(Glass,RoundedCornerShape(23.dp)).clickable(onClick=onClick).padding(15.dp),verticalAlignment=Alignment.CenterVertically) {
-  Icon(icon,null,tint=Aqua,modifier=Modifier.size(27.dp)); Spacer(Modifier.width(10.dp))
-  Column { Text(title,color=Color.White,fontWeight=FontWeight.SemiBold); Text(subtitle,color=Color.White.copy(alpha=.7f),fontSize=10.sp) }
+private fun GlassTile(title:String, subtitle:String, icon:androidx.compose.ui.graphics.vector.ImageVector, onClick:()->Unit = {}) {
+ Row(Modifier.fillMaxWidth().padding(bottom=10.dp).background(Glass,RoundedCornerShape(22.dp)).clickable(onClick=onClick).padding(17.dp),verticalAlignment=Alignment.CenterVertically) {
+  Icon(icon,null,tint=Silver.copy(alpha=.9f),modifier=Modifier.size(23.dp))
+  Spacer(Modifier.width(14.dp))
+  Column(Modifier.weight(1f)) {
+   Text(title,color=Silver,fontSize=14.sp,fontWeight=FontWeight.Medium)
+   Text(subtitle,color=Muted,fontSize=10.sp)
+  }
+  Icon(Icons.Default.ChevronRight,null,tint=Muted)
  }
 }
 
@@ -116,8 +143,8 @@ private fun DevicePanel() {
  val total=s.totalBytes/(1024.0*1024*1024)
  val free=s.availableBytes/(1024.0*1024*1024)
  Column(verticalArrangement=Arrangement.spacedBy(12.dp)) {
-  Text("Device overview",color=Color.White,fontSize=28.sp,fontWeight=FontWeight.SemiBold)
-  Tile("Internal storage","%.1f GB free of %.1f GB".format(free,total),Icons.Default.Storage,Modifier.fillMaxWidth()){}
-  Text("Read-only overview. Android controls protected app-cache and system cleanup.",color=Color.White.copy(alpha=.7f),fontSize=12.sp)
+  Text("Device",color=Silver,fontSize=30.sp,fontWeight=FontWeight.Light)
+  GlassTile("Internal storage","%.1f GB available of %.1f GB".format(free,total),Icons.Default.Storage)
+  Text("Read-only information. Android retains control of protected system cleanup and app data.",color=Muted,fontSize=11.sp)
  }
 }
