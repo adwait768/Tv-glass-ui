@@ -26,18 +26,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.border
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// 768 Glass OS — restrained monochrome industrial-futurist system.
-private val Void = Color(0xFF070809)
-private val Panel = Color(0xFF111316)
-private val Glass = Color(0xFF171A1E)
-private val White = Color(0xFFF0F1F2)
-private val Silver = Color(0xFFB9BEC5)
-private val Dim = Color(0xFF747B84)
-private val Hairline = Color(0xFF292D32)
+// 768 Glass OS — ruby-glass luxury interface.
+private val Void = Color(0xFF090607)
+private val Panel = Color(0xFF1B1013)
+private val Glass = Color(0xFF251317)
+private val White = Color(0xFFFFF4F3)
+private val Silver = Color(0xFFE0BFC2)
+private val Dim = Color(0xFF9A7B80)
+private val Hairline = Color(0xFF48242D)
+private val Ruby = Color(0xFFE11D48)
+private val RubyDeep = Color(0xFF7F102B)
+private val RoseGold = Color(0xFFD9A0A7)
 
 class MainActivity : ComponentActivity() {
  override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,17 +65,17 @@ fun GlassOS() {
  val time = remember { java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date()) }
  val date = remember { java.text.SimpleDateFormat("EEE  ·  dd MMM", java.util.Locale.getDefault()).format(java.util.Date()).uppercase() }
 
- MaterialTheme(colorScheme = darkColorScheme(primary=White, background=Void, surface=Panel)) {
-  Box(Modifier.fillMaxSize().background(Void)) {
+ MaterialTheme(colorScheme = darkColorScheme(primary=Ruby, secondary=RoseGold, background=Void, surface=Panel)) {
+  Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF16090D), Void, Color(0xFF090607))))) {
    // Android safe drawing insets protect the content around punch-hole cameras and notches.
    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal=22.dp, vertical=14.dp)) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.SpaceBetween, verticalAlignment=Alignment.CenterVertically) {
      Row(verticalAlignment=Alignment.CenterVertically) {
-      Box(Modifier.size(7.dp).background(White, CircleShape))
+      Box(Modifier.size(8.dp).background(Brush.linearGradient(listOf(Color(0xFFFFA3B5), Ruby, RubyDeep)), CircleShape).border(1.dp, Color(0xFFFFC4CE).copy(alpha=.55f), CircleShape))
       Spacer(Modifier.width(9.dp))
       Text("768 / GLASS", color=White, fontSize=10.sp, fontWeight=FontWeight.SemiBold, letterSpacing=2.4.sp)
      }
-     Text("A17 SERIES", color=Dim, fontSize=9.sp, letterSpacing=1.7.sp)
+     Text("A17 / RUBY EDITION", color=Dim, fontSize=9.sp, letterSpacing=1.7.sp)
     }
     Spacer(Modifier.height(38.dp))
     when(page) {
@@ -83,10 +88,10 @@ fun GlassOS() {
       LazyVerticalGrid(columns=GridCells.Adaptive(92.dp), verticalArrangement=Arrangement.spacedBy(10.dp), horizontalArrangement=Arrangement.spacedBy(10.dp)) {
        items(apps) { app ->
         val label=app.loadLabel(ctx.packageManager).toString()
-        Column(Modifier.background(Glass,RoundedCornerShape(18.dp)).clickable {
+        Column(Modifier.background(Brush.verticalGradient(listOf(Color(0xFF48202B), Glass, Color(0xFF170D10))),RoundedCornerShape(18.dp)).border(1.dp,Color(0xFFB85A70).copy(alpha=.24f),RoundedCornerShape(18.dp)).clickable {
          ctx.packageManager.getLaunchIntentForPackage(app.activityInfo.packageName)?.let { ctx.startActivity(it) }
         }.padding(vertical=16.dp,horizontal=7.dp), horizontalAlignment=Alignment.CenterHorizontally) {
-         Text(label.take(1).uppercase(),color=Silver,fontSize=22.sp,fontWeight=FontWeight.Light)
+         Text(label.take(1).uppercase(),color=RoseGold,fontSize=22.sp,fontWeight=FontWeight.Light)
          Spacer(Modifier.height(6.dp))
          Text(label,color=White.copy(alpha=.88f),fontSize=10.sp,maxLines=2)
         }
@@ -109,11 +114,11 @@ fun GlassOS() {
       Spacer(Modifier.height(10.dp))
       Text(time,color=White,fontSize=68.sp,fontWeight=FontWeight.ExtraLight,letterSpacing=(-3).sp)
       Spacer(Modifier.height(5.dp))
-      Text("A quieter digital space.",color=Silver,fontSize=15.sp,fontWeight=FontWeight.Light)
+      Text("A richer digital atmosphere.",color=Silver,fontSize=15.sp,fontWeight=FontWeight.Light)
       Spacer(Modifier.height(32.dp))
       Box(Modifier.fillMaxWidth().height(1.dp).background(Hairline))
       Spacer(Modifier.height(16.dp))
-      Text("QUICK ACCESS",color=Dim,fontSize=9.sp,letterSpacing=2.2.sp)
+      Text("QUICK ACCESS  /  RUBY GLASS",color=Dim,fontSize=9.sp,letterSpacing=2.2.sp)
       Spacer(Modifier.height(12.dp))
       QuickRow("Applications","Open app index",Icons.Default.GridView) { page="Apps" }
       QuickRow("Device status","Storage overview",Icons.Default.Memory) { page="Device" }
@@ -123,12 +128,12 @@ fun GlassOS() {
      }
     }
     if(page!="Home") Spacer(Modifier.weight(1f))
-    Row(Modifier.fillMaxWidth().background(Panel,RoundedCornerShape(26.dp)).padding(6.dp),horizontalArrangement=Arrangement.SpaceAround) {
+    Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Color(0xFF382027),Panel,Color(0xFF160D10))),RoundedCornerShape(26.dp)).border(1.dp,Color(0xFFB85A70).copy(alpha=.25f),RoundedCornerShape(26.dp)).padding(6.dp),horizontalArrangement=Arrangement.SpaceAround) {
      listOf("Home","Apps","Device","Settings").forEach { item ->
       val selected=page==item
       val scale by animateFloatAsState(if(selected) 1f else .96f,animationSpec=spring(stiffness=500f),label="navScale")
       val icon=when(item){"Home"->Icons.Default.Home;"Apps"->Icons.Default.GridView;"Device"->Icons.Default.Memory;else->Icons.Default.Tune}
-      Column(Modifier.scale(scale).clickable{page=item}.background(if(selected) Color(0xFF292D32) else Color.Transparent,RoundedCornerShape(20.dp)).padding(horizontal=13.dp,vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally) {
+      Column(Modifier.scale(scale).clickable{page=item}.background(if(selected) Color(0xFF5A1829).copy(alpha=.78f) else Color.Transparent,RoundedCornerShape(20.dp)).padding(horizontal=13.dp,vertical=9.dp),horizontalAlignment=Alignment.CenterHorizontally) {
        Icon(icon,null,tint=if(selected) White else Dim,modifier=Modifier.size(18.dp))
        Text(item,color=if(selected) White else Dim,fontSize=9.sp)
       }
@@ -141,7 +146,7 @@ fun GlassOS() {
 
 @Composable
 private fun QuickRow(title:String,subtitle:String,icon:androidx.compose.ui.graphics.vector.ImageVector,onClick:()->Unit) {
- Row(Modifier.fillMaxWidth().padding(bottom=9.dp).background(Panel,RoundedCornerShape(17.dp)).clickable(onClick=onClick).padding(horizontal=15.dp,vertical=15.dp),verticalAlignment=Alignment.CenterVertically) {
+ Row(Modifier.fillMaxWidth().padding(bottom=9.dp).background(Brush.verticalGradient(listOf(Color(0xFF3A1C25),Panel,Color(0xFF170D10))),RoundedCornerShape(17.dp)).border(1.dp,Color(0xFFB85A70).copy(alpha=.22f),RoundedCornerShape(17.dp)).clickable(onClick=onClick).padding(horizontal=15.dp,vertical=15.dp),verticalAlignment=Alignment.CenterVertically) {
   Icon(icon,null,tint=Silver,modifier=Modifier.size(20.dp))
   Spacer(Modifier.width(13.dp))
   Column(Modifier.weight(1f)) {
