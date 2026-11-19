@@ -4,17 +4,17 @@ import android.app.ActivityOptions
 import android.content.ComponentName
 import android.content.Intent
 import android.graphics.drawable.Drawable
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
 import android.os.Bundle
 import android.view.WindowManager
 import android.widget.ImageView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,7 +43,7 @@ import androidx.compose.material3.TextFieldDefaults
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private data class AppEntry(val packageName:String,val activityName:String,val label:String,val icon:Drawable)
+private data class AppEntry(val packageName:String,val activityName:String,val label:String,val icon:Bitmap)
 private data class Palette(val name:String,val base:Color,val accent:Color,val glow:Color,val text:Color)
 private val themes=listOf(
  Palette("Ruby",Color(0xFF170912),Color(0xFFE52B55),Color(0xFFFFB8C7),Color(0xFFFFF7F8)),
@@ -56,7 +56,8 @@ private val themes=listOf(
 class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){
   super.onCreate(savedInstanceState);enableEdgeToEdge()
-  window.attributes=window.attributes.apply{preferredRefreshRate=120f}
+  val maxRate = if (android.os.Build.VERSION.SDK_INT >= 23) display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: 60f else 60f
+  window.attributes=window.attributes.apply{preferredRefreshRate=maxRate}
   setContent{GlassLauncher()}
  }
 }
@@ -73,10 +74,16 @@ class MainActivity:ComponentActivity(){
   context.packageManager.queryIntentActivities(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),0)
    .asSequence().filter{it.activityInfo.packageName!=context.packageName}
    .distinctBy{it.activityInfo.packageName}
-   .map{a->AppEntry(a.activityInfo.packageName,a.activityInfo.name,a.loadLabel(context.packageManager).toString(),a.loadIcon(context.packageManager))}
+   .map{a->AppEntry(a.activityInfo.packageName,a.activityInfo.name,a.loadLabel(context.packageManager).toString(),a.loadIcon(context.packageManager).let { drawable ->
+    val bmp=Bitmap.createBitmap(96,96,Bitmap.Config.ARGB_8888)
+    val canvas=Canvas(bmp)
+    drawable.setBounds(0,0,96,96)
+    drawable.draw(canvas)
+    bmp
+   })}
    .sortedBy{it.label.lowercase()}.toList()
  }}
- val shown=apps.filter{it.label.contains(query,true)}
+ val shown=remember(apps,query){apps.filter{it.label.contains(query,true)}}
  MaterialTheme(colorScheme=darkColorScheme(primary=p.accent,background=p.base)){
   Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(p.accent.copy(alpha=.23f),p.base,Color.Black)))){
    Column(Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal=16.dp,vertical=10.dp)){
@@ -105,17 +112,15 @@ class MainActivity:ComponentActivity(){
      TextField(value=query,onValueChange={query=it},placeholder={Text("Search apps",color=p.glow.copy(alpha=.7f),fontSize=13.sp)},singleLine=true,modifier=Modifier.weight(1f),colors=TextFieldDefaults.colors(focusedTextColor=p.text,unfocusedTextColor=p.text,focusedContainerColor=Color.Transparent,unfocusedContainerColor=Color.Transparent,focusedIndicatorColor=Color.Transparent,unfocusedIndicatorColor=Color.Transparent,cursorColor=p.glow))
     }
     Spacer(Modifier.height(10.dp))
-    AnimatedContent(targetState=vertical,label="layoutTransition",transitionSpec={fadeIn(spring(stiffness=400f)) togetherWith fadeOut(spring(stiffness=450f))}){isVertical->
-     if(isVertical){
+    if(vertical){
       LazyColumn(Modifier.fillMaxSize(),verticalArrangement=Arrangement.spacedBy(7.dp),contentPadding=PaddingValues(bottom=20.dp)){
-       items(shown,key={it.packageName}){app->AppRow(app,p){openApp(context,app)}}
+       items(shown,key={it.packageName},contentType={"app-row"}){app->AppRow(app,p){openApp(context,app)}}
       }
      }else{
       LazyRow(Modifier.fillMaxSize(),horizontalArrangement=Arrangement.spacedBy(10.dp),contentPadding=PaddingValues(bottom=20.dp)){
-       items(shown,key={it.packageName}){app->AppTile(app,p){openApp(context,app)}}
+       items(shown,key={it.packageName},contentType={"app-tile"}){app->AppTile(app,p){openApp(context,app)}}
       }
      }
-    }
    }
   }
  }
@@ -130,14 +135,14 @@ private fun openApp(c:android.content.Context,a:AppEntry){
 }
 @Composable private fun AppRow(a:AppEntry,p:Palette,onClick:()->Unit){
  Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Brush.horizontalGradient(listOf(Color.White.copy(alpha=.16f),p.accent.copy(alpha=.10f),Color.White.copy(alpha=.04f)))).border(1.dp,Color.White.copy(alpha=.24f),RoundedCornerShape(17.dp)).clickable(onClick=onClick).padding(horizontal=12.dp,vertical=9.dp),verticalAlignment=Alignment.CenterVertically){
-  AndroidView(factory={ImageView(it).apply{scaleType=ImageView.ScaleType.FIT_CENTER}},update={it.setImageDrawable(a.icon)},modifier=Modifier.size(39.dp))
+  Image(bitmap=a.icon.asImageBitmap(),contentDescription=a.label,modifier=Modifier.size(39.dp),contentScale=ContentScale.Fit)
   Spacer(Modifier.width(13.dp));Text(a.label,color=p.text,fontSize=13.sp,fontWeight=FontWeight.Medium,modifier=Modifier.weight(1f))
   Text("›",color=p.glow,fontSize=22.sp)
  }
 }
 @Composable private fun AppTile(a:AppEntry,p:Palette,onClick:()->Unit){
  Column(Modifier.width(92.dp).clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color.White.copy(alpha=.20f),p.accent.copy(alpha=.15f),p.base.copy(alpha=.65f)))).border(1.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.75f),p.glow.copy(alpha=.4f),Color.White.copy(alpha=.15f))),RoundedCornerShape(20.dp)).clickable(onClick=onClick).padding(horizontal=5.dp,vertical=15.dp),horizontalAlignment=Alignment.CenterHorizontally){
-  AndroidView(factory={ImageView(it).apply{scaleType=ImageView.ScaleType.FIT_CENTER}},update={it.setImageDrawable(a.icon)},modifier=Modifier.size(45.dp))
+  Image(bitmap=a.icon.asImageBitmap(),contentDescription=a.label,modifier=Modifier.size(45.dp),contentScale=ContentScale.Fit)
   Spacer(Modifier.height(8.dp));Text(a.label,color=p.text,fontSize=10.sp,maxLines=2)
  }
 }
