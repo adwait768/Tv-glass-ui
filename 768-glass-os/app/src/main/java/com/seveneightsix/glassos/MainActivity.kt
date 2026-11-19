@@ -56,7 +56,7 @@ private val themes=listOf(
 class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){
   super.onCreate(savedInstanceState);enableEdgeToEdge()
-  val maxRate = if (android.os.Build.VERSION.SDK_INT >= 23) display?.supportedModes?.maxOfOrNull { it.refreshRate } ?: 60f else 60f
+  val maxRate = if (android.os.Build.VERSION.SDK_INT >= 23) windowManager.defaultDisplay.supportedModes.maxOfOrNull { it.refreshRate } ?: 60f else 60f
   window.attributes=window.attributes.apply{preferredRefreshRate=maxRate}
   setContent{GlassLauncher()}
  }
